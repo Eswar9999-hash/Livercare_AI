@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { FileText, Download, AlertTriangle, Activity, Calendar, User } from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import { useNavigate } from 'react-router-dom';
+import { Patient } from './patient.type';
 
 interface HealthReportData {
   patientName: string;
@@ -14,40 +15,55 @@ interface HealthReportData {
 }
 
 const HealthReport = () => {
-  const { id } = useParams();
   const [report, setReport] = useState<HealthReportData | null>(null);
+  const [patientData, setPatientData] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate API call to fetch report data
-    setTimeout(() => {
-      setReport({
-        patientName: "John Doe",
-        age: 45,
-        assessmentDate: "2024-03-15",
-        riskScore: 0.35,
-        keyFindings: [
-          "Elevated bilirubin levels (2.5 mg/dL)",
-          "Normal albumin levels",
-          "Platelet count within range",
-          "Slightly elevated prothrombin time"
-        ],
-        recommendations: [
-          "Regular monitoring of liver function tests",
-          "Maintain healthy diet and exercise routine",
-          "Avoid alcohol consumption",
-          "Schedule follow-up in 3 months"
-        ],
-        nextSteps: [
-          "Book appointment with hepatologist",
-          "Complete follow-up blood tests",
-          "Join liver health support group",
-          "Download patient education materials"
-        ]
+    const patientId = sessionStorage.getItem('patientId');
+    if (!patientId) {
+      navigate('/login');
+      return;
+    }
+
+    fetch(`http://localhost:3001/liverData/?Patient_ID=${patientId}`)
+      .then((res) => res.json())
+      .then((data: Patient[]) => {
+        const patient = data[0];
+        setPatientData(patient);
+
+        setReport({
+          patientName: patient?.Name ?? 'Unknown',
+          age: patient?.Age ?? 0,
+          assessmentDate: patient?.Report_Date ?? '',
+          riskScore: patient?.riskScore ?? 0,
+          keyFindings: [
+            'Elevated bilirubin levels (2.5 mg/dL)',
+            'Normal albumin levels',
+            'Platelet count within range',
+            'Slightly elevated prothrombin time',
+          ],
+          recommendations: [
+            'Regular monitoring of liver function tests',
+            'Maintain healthy diet and exercise routine',
+            'Avoid alcohol consumption',
+            'Schedule follow-up in 3 months',
+          ],
+          nextSteps: [
+            'Book appointment with hepatologist',
+            'Complete follow-up blood tests',
+            'Join liver health support group',
+            'Download patient education materials',
+          ],
+        });
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
       });
-      setLoading(false);
-    }, 1000);
-  }, [id]);
+  }, [navigate]);
 
   const generatePDF = () => {
     if (!report) return;
@@ -55,26 +71,23 @@ const HealthReport = () => {
     const doc = new jsPDF();
     let yPos = 20;
 
-    // Title
     doc.setFontSize(20);
     doc.text('Liver Health Assessment Report', 20, yPos);
     yPos += 20;
 
-    // Patient Info
     doc.setFontSize(12);
     doc.text(`Patient: ${report.patientName}`, 20, yPos);
     doc.text(`Age: ${report.age}`, 20, yPos + 10);
     doc.text(`Assessment Date: ${report.assessmentDate}`, 20, yPos + 20);
-    doc.text(`Risk Score: ${(report.riskScore * 100).toFixed(1)}%`, 20, yPos + 30);
+    doc.text(`Risk Score: ${(report.riskScore).toFixed(1)}%`, 20, yPos + 30);
     yPos += 50;
 
-    // Sections
     const addSection = (title: string, items: string[]) => {
       doc.setFontSize(14);
       doc.text(title, 20, yPos);
       yPos += 10;
       doc.setFontSize(12);
-      items.forEach(item => {
+      items.forEach((item) => {
         doc.text(`• ${item}`, 25, yPos);
         yPos += 10;
       });
@@ -85,7 +98,8 @@ const HealthReport = () => {
     addSection('Recommendations', report.recommendations);
     addSection('Next Steps', report.nextSteps);
 
-    doc.save(`liver-health-report-${id}.pdf`);
+    const patientId = sessionStorage.getItem('patientId') ?? 'report';
+    doc.save(`liver-health-report-${patientId}.pdf`);
   };
 
   if (loading) {
@@ -108,7 +122,6 @@ const HealthReport = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Health Assessment Report</h1>
         <button
@@ -120,7 +133,6 @@ const HealthReport = () => {
         </button>
       </div>
 
-      {/* Patient Information */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Patient Information</h2>
         <div className="grid md:grid-cols-2 gap-6">
@@ -128,20 +140,19 @@ const HealthReport = () => {
             <User className="h-5 w-5 text-gray-400" />
             <div>
               <p className="text-sm text-gray-500">Patient Name</p>
-              <p className="font-medium">{report.patientName}</p>
+              <p className="font-medium">{patientData?.Name ?? 'N/A'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             <Calendar className="h-5 w-5 text-gray-400" />
             <div>
               <p className="text-sm text-gray-500">Assessment Date</p>
-              <p className="font-medium">{report.assessmentDate}</p>
+              <p className="font-medium">{patientData?.Report_Date ?? 'N/A'}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Risk Score */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Risk Assessment</h2>
         <div className="flex items-center space-x-4">
@@ -149,16 +160,15 @@ const HealthReport = () => {
           <div>
             <p className="text-sm text-gray-500">Cirrhosis Risk Score</p>
             <p className={`text-2xl font-bold ${
-              report.riskScore > 0.7 ? 'text-red-600' :
-              report.riskScore > 0.4 ? 'text-yellow-600' : 'text-green-600'
+              (patientData?.riskScore ?? 0) > 70 ? 'text-red-600' :
+              (patientData?.riskScore ?? 0) > 40 ? 'text-yellow-600' : 'text-green-600'
             }`}>
-              {(report.riskScore * 100).toFixed(1)}%
+              {(patientData?.riskScore ?? 0).toFixed(1)}%
             </p>
           </div>
         </div>
       </div>
 
-      {/* Findings and Recommendations */}
       <div className="grid md:grid-cols-2 gap-8">
         <ReportSection
           title="Key Findings"
@@ -172,7 +182,6 @@ const HealthReport = () => {
         />
       </div>
 
-      {/* Next Steps */}
       <ReportSection
         title="Next Steps"
         items={report.nextSteps}
@@ -182,7 +191,15 @@ const HealthReport = () => {
   );
 };
 
-const ReportSection = ({ title, items, icon }: { title: string; items: string[]; icon: React.ReactNode }) => (
+const ReportSection = ({
+  title,
+  items,
+  icon,
+}: {
+  title: string;
+  items: string[];
+  icon: React.ReactNode;
+}) => (
   <div className="bg-white rounded-lg shadow-md p-6">
     <div className="flex items-center space-x-3 mb-4">
       {icon}

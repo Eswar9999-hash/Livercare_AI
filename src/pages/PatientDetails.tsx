@@ -5,7 +5,6 @@ import { Patient } from './patient.type';
 
 const PatientDetails = () => {
   const navigate = useNavigate();
-  //const [searchError, setSearchError] = useState(false);
   const [patientData, setPatientData] = useState<null | Patient>(null);
 
   useEffect(() => {
@@ -60,11 +59,11 @@ const PatientDetails = () => {
           <InfoField label="Diet Recommendation" value={patientData.Diet_Recommendation} />
           <InfoField
             label="Risk Score"
-            value={`${(patientData.riskScore * 100).toFixed(1)}%`}
+            value={`${(patientData.riskScore)}%`}
             className={
-              patientData.riskScore > 0.7
+              patientData.riskScore > 70.0
                 ? 'text-red-600'
-                : patientData.riskScore > 0.4
+                : patientData.riskScore > 40.0
                 ? 'text-yellow-600'
                 : 'text-green-600'
             }
